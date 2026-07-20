@@ -9,11 +9,16 @@ import {
   generateRecoveryCodes,
   generateSessionToken,
   generateTotpSecret,
+  getIsRegistrationAllowed,
+  getOidcConfiguration,
+  getOidcMetadata,
   github,
   google,
   hashPassword,
   hashRecoveryCodes,
   invalidateSession,
+  isOidcEnabled,
+  oidc,
   setLastAuthProviderCookie,
   setSessionTokenCookie,
   validateSessionToken,
@@ -52,7 +57,7 @@ const TWO_FACTOR_COOKIE = '2fa_challenge';
 const TWO_FACTOR_CHALLENGE_TTL_SECONDS = 5 * 60;
 const INVITE_COOKIE = 'inviteId';
 
-const zProvider = z.enum(['email', 'google', 'github']);
+const zProvider = z.enum(['email', 'google', 'github', 'oidc']);
 
 /**
  * Best-effort consumption of an invite for a user that just authenticated.
@@ -75,38 +80,6 @@ async function consumeInviteForUser(
   }
 }
 
-async function getIsRegistrationAllowed(inviteId?: string | null) {
-  // ALLOW_REGISTRATION is always undefined in cloud
-  if (process.env.ALLOW_REGISTRATION === undefined) {
-    return true;
-  }
-
-  // Self-hosting logic
-  // 1. First user is always allowed
-  const count = await db.user.count();
-  if (count === 0) {
-    return true;
-  }
-
-  // 2. If there is an invite, check if it is valid
-  if (inviteId) {
-    if (process.env.ALLOW_INVITATION === 'false') {
-      return false;
-    }
-
-    const invite = await db.invite.findUnique({
-      where: {
-        id: inviteId,
-      },
-    });
-
-    return !!invite;
-  }
-
-  // 3. Otherwise, check if general registration is allowed
-  return process.env.ALLOW_REGISTRATION !== 'false';
-}
-
 export const authRouter = createTRPCRouter({
   signOut: publicProcedure.mutation(async ({ ctx }) => {
     deleteSessionTokenCookie(ctx.setCookie);
@@ -117,15 +90,17 @@ export const authRouter = createTRPCRouter({
   signInOAuth: publicProcedure
     .input(z.object({ provider: zProvider, inviteId: z.string().nullish() }))
     .mutation(async ({ input, ctx }) => {
-      const isRegistrationAllowed = await getIsRegistrationAllowed(
-        input.inviteId
-      );
+      const { provider } = input;
 
-      if (!isRegistrationAllowed) {
+      // OIDC must allow known users to start authentication after public
+      // registration is locked. Unknown users are rejected in the callback,
+      // after their signed identity has been validated.
+      if (
+        provider !== 'oidc' &&
+        !(await getIsRegistrationAllowed(input.inviteId))
+      ) {
         throw new TRPCAccessError('Registrations are not allowed');
       }
-
-      const { provider } = input;
 
       if (input.inviteId) {
         ctx.setCookie('inviteId', input.inviteId, {
@@ -146,6 +121,43 @@ export const authRouter = createTRPCRouter({
 
         return {
           type: 'github',
+          url: url.toString(),
+        };
+      }
+
+      if (provider === 'oidc') {
+        if (!isOidcEnabled()) {
+          throw new TRPCAccessError(
+            'OIDC sign-in is not configured on this instance'
+          );
+        }
+
+        const config = getOidcConfiguration();
+        const metadata = await getOidcMetadata();
+        const state = Arctic.generateState();
+        const codeVerifier = Arctic.generateCodeVerifier();
+        const nonce = Arctic.generateState();
+        const url = oidc.createAuthorizationURLWithPKCE(
+          metadata.authorizationEndpoint,
+          state,
+          Arctic.CodeChallengeMethod.S256,
+          codeVerifier,
+          config.scopes
+        );
+        url.searchParams.set('nonce', nonce);
+
+        ctx.setCookie('oidc_oauth_state', state, {
+          maxAge: 60 * 10,
+        });
+        ctx.setCookie('oidc_code_verifier', codeVerifier, {
+          maxAge: 60 * 10,
+        });
+        ctx.setCookie('oidc_nonce', nonce, {
+          maxAge: 60 * 10,
+        });
+
+        return {
+          type: 'oidc',
           url: url.toString(),
         };
       }
@@ -533,7 +545,7 @@ export const authRouter = createTRPCRouter({
         windowMs: 60_000,
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       const { token, password } = input;
 
       const resetPassword = await db.resetPassword.findUnique({
@@ -572,7 +584,7 @@ export const authRouter = createTRPCRouter({
       })
     )
     .input(zRequestResetPassword)
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       const user = await getUserAccount({
         email: input.email,
         provider: 'email',

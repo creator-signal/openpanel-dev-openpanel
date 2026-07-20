@@ -1,3 +1,4 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { AlertCircle } from 'lucide-react';
 import { z } from 'zod';
@@ -5,8 +6,10 @@ import { Or } from '@/components/auth/or';
 import { SignInEmailForm } from '@/components/auth/sign-in-email-form';
 import { SignInGithub } from '@/components/auth/sign-in-github';
 import { SignInGoogle } from '@/components/auth/sign-in-google';
+import { SignInOidc } from '@/components/auth/sign-in-oidc';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useCookieStore } from '@/hooks/use-cookie-store';
+import { getServerEnvsQueryOptions } from '@/server/get-envs';
 import { createTitle, PAGE_TITLES } from '@/utils/title';
 
 export const Route = createFileRoute('/_login/login')({
@@ -26,6 +29,7 @@ export const Route = createFileRoute('/_login/login')({
 
 function LoginPage() {
   const { error, correlationId, inviteId } = Route.useSearch();
+  const { data: envs } = useSuspenseQuery(getServerEnvsQueryOptions);
   const [lastProvider] = useCookieStore<null | string>(
     'last-auth-provider',
     null
@@ -35,15 +39,17 @@ function LoginPage() {
     <div className="col w-full gap-8 text-left">
       <div>
         <h1 className="mb-2 font-bold text-3xl text-foreground">Sign in</h1>
-        <p className="text-muted-foreground">
-          Don't have an account?{' '}
-          <a
-            className="font-medium text-foreground underline"
-            href="/onboarding"
-          >
-            Create one today
-          </a>
-        </p>
+        {!envs.oidc.only && (
+          <p className="text-muted-foreground">
+            Don't have an account?{' '}
+            <a
+              className="font-medium text-foreground underline"
+              href="/onboarding"
+            >
+              Create one today
+            </a>
+          </p>
+        )}
       </div>
       {error && (
         <Alert
@@ -73,19 +79,35 @@ function LoginPage() {
       )}
 
       <div className="space-y-4">
-        <SignInGoogle
+        <SignInOidc
           inviteId={inviteId}
-          isLastUsed={lastProvider === 'google'}
+          isLastUsed={lastProvider === 'oidc'}
           type="sign-in"
         />
-        <SignInGithub
-          inviteId={inviteId}
-          isLastUsed={lastProvider === 'github'}
-          type="sign-in"
-        />
+        {!envs.oidc.only && (
+          <>
+            <SignInGoogle
+              inviteId={inviteId}
+              isLastUsed={lastProvider === 'google'}
+              type="sign-in"
+            />
+            <SignInGithub
+              inviteId={inviteId}
+              isLastUsed={lastProvider === 'github'}
+              type="sign-in"
+            />
+          </>
+        )}
       </div>
-      <Or />
-      <SignInEmailForm inviteId={inviteId} isLastUsed={lastProvider === 'email'} />
+      {!envs.oidc.only && (
+        <>
+          <Or />
+          <SignInEmailForm
+            inviteId={inviteId}
+            isLastUsed={lastProvider === 'email'}
+          />
+        </>
+      )}
     </div>
   );
 }

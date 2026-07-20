@@ -2,11 +2,16 @@ import {
   Arctic,
   createSession,
   generateSessionToken,
+  getIsRegistrationAllowed,
+  getOidcMetadata,
   github,
   google,
+  isOidcEnabled,
   type OAuth2Tokens,
+  oidc,
   setLastAuthProviderCookie,
   setSessionTokenCookie,
+  verifyOidcIdToken,
 } from '@openpanel/auth';
 import { type Account, connectUserToOrganization, db } from '@openpanel/db';
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -40,7 +45,7 @@ async function getGithubEmail(githubAccessToken: string) {
 }
 
 // New types and interfaces
-type Provider = 'github' | 'google';
+type Provider = 'github' | 'google' | 'oidc';
 interface OAuthUser {
   id: string;
   email: string;
@@ -150,11 +155,14 @@ async function handleNewUser({
     try {
       await connectUserToOrganization({ user, inviteId });
     } catch (error) {
-      reply.log.error({
-        error,
-        inviteId,
-        user,
-      }, 'error connecting user to organization');
+      reply.log.error(
+        {
+          error,
+          inviteId,
+          user,
+        },
+        'error connecting user to organization'
+      );
     }
   }
 
@@ -207,6 +215,25 @@ async function fetchGithubUser(accessToken: string): Promise<OAuthUser> {
     id: String(userResult.data.id),
     email,
     firstName: userResult.data.name || userResult.data.login || '',
+  };
+}
+
+async function fetchOidcUser(
+  tokens: OAuth2Tokens,
+  nonce: string
+): Promise<OAuthUser> {
+  const claims = await verifyOidcIdToken(tokens.idToken(), nonce);
+  const givenName =
+    typeof claims.given_name === 'string' ? claims.given_name : '';
+  const familyName =
+    typeof claims.family_name === 'string' ? claims.family_name : '';
+  const fallbackName = typeof claims.name === 'string' ? claims.name : '';
+
+  return {
+    id: claims.sub,
+    email: claims.email,
+    firstName: givenName || fallbackName || claims.email,
+    lastName: familyName,
   };
 }
 
@@ -266,20 +293,22 @@ async function validateOAuthCallback(
 
   const { code, state } = query.data;
   const storedState = req.cookies[`${provider}_oauth_state`] ?? null;
-  const codeVerifier =
-    provider === 'google' ? (req.cookies.google_code_verifier ?? null) : null;
+  const usesPkce = provider === 'google' || provider === 'oidc';
+  const codeVerifier = usesPkce
+    ? (req.cookies[`${provider}_code_verifier`] ?? null)
+    : null;
 
   if (
     code === null ||
     state === null ||
     storedState === null ||
-    (provider === 'google' && codeVerifier === null)
+    (usesPkce && codeVerifier === null)
   ) {
     throw new LogError('Missing oauth parameters', {
       code: code === null,
       state: state === null,
       storedState: storedState === null,
-      codeVerifier: provider === 'google' ? codeVerifier === null : undefined,
+      codeVerifier: usesPkce ? codeVerifier === null : undefined,
       provider,
     });
   }
@@ -373,6 +402,78 @@ export async function googleCallback(req: FastifyRequest, reply: FastifyReply) {
     return await handleNewUser({
       oauthUser: googleUser,
       providerName: 'google',
+      inviteId,
+      reply,
+    });
+  } catch (error) {
+    req.log.error(error);
+    return redirectWithError(reply, error);
+  }
+}
+
+export async function oidcCallback(req: FastifyRequest, reply: FastifyReply) {
+  try {
+    if (!isOidcEnabled()) {
+      throw new LogError('OIDC is not configured on this instance');
+    }
+
+    const { code } = await validateOAuthCallback(req, 'oidc');
+    const inviteId = req.cookies.inviteId;
+    const codeVerifier = req.cookies.oidc_code_verifier!;
+    const nonce = req.cookies.oidc_nonce;
+    if (!nonce) {
+      throw new LogError('Missing OIDC nonce');
+    }
+    const metadata = await getOidcMetadata();
+    const tokens = await oidc.validateAuthorizationCode(
+      metadata.tokenEndpoint,
+      code,
+      codeVerifier
+    );
+    const oidcUser = await fetchOidcUser(tokens, nonce);
+    const allowEmailLinking = process.env.OIDC_ALLOW_EMAIL_LINKING === 'true';
+    const existingAccount = await db.account.findFirst({
+      where: {
+        OR: [
+          { provider: 'oidc', providerId: oidcUser.id },
+          ...(allowEmailLinking
+            ? [
+                {
+                  provider: 'oidc',
+                  providerId: null,
+                  email: oidcUser.email,
+                },
+                { user: { email: oidcUser.email } },
+              ]
+            : []),
+        ],
+      },
+    });
+
+    reply.clearCookie('oidc_code_verifier');
+    reply.clearCookie('oidc_nonce');
+    reply.clearCookie('oidc_oauth_state');
+
+    if (existingAccount) {
+      return await handleExistingUser({
+        account: existingAccount,
+        oauthUser: oidcUser,
+        providerName: 'oidc',
+        reply,
+      });
+    }
+
+    const oidcRegistrationAllowed =
+      process.env.OIDC_ALLOW_REGISTRATION === 'true';
+    if (
+      !(oidcRegistrationAllowed || (await getIsRegistrationAllowed(inviteId)))
+    ) {
+      throw new LogError('Registrations are not allowed');
+    }
+
+    return await handleNewUser({
+      oauthUser: oidcUser,
+      providerName: 'oidc',
       inviteId,
       reply,
     });

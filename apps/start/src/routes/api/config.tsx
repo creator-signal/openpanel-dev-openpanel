@@ -7,6 +7,12 @@ export interface ConfigResonse {
   isSelfHosted: boolean;
   isMaintenance: boolean;
   isDemo: boolean;
+  oidc: {
+    enabled: boolean;
+    displayName: string;
+    loginMode: 'auto' | 'button';
+    only: boolean;
+  };
 }
 // Nothing sensitive here, its client environment variables which is good for debugging
 export const Route = createFileRoute('/api/config')({
@@ -14,11 +20,7 @@ export const Route = createFileRoute('/api/config')({
     handlers: {
       GET: async () => {
         const envs = await getServerEnvs();
-        return new Response(JSON.stringify(envs), {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+        return Response.json(envs);
       },
     },
   },
