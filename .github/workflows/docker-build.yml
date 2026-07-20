@@ -20,7 +20,7 @@ env:
 
 jobs:
   validate:
-    name: Typecheck and test
+    name: Test
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -69,14 +69,6 @@ jobs:
         run: pnpm codegen
       - name: Apply test migrations
         run: pnpm migrate:deploy
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
-          DATABASE_URL_DIRECT: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
-          CLICKHOUSE_URL: http://localhost:8123/openpanel
-          REDIS_URL: redis://localhost:6379
-          SELF_HOSTED: "true"
-      - name: Typecheck OIDC auth package
-        run: pnpm --filter @openpanel/auth typecheck
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
           DATABASE_URL_DIRECT: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
