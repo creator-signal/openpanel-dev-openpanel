@@ -1,13 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { MailIcon } from 'lucide-react';
 import { z } from 'zod';
 import { Or } from '@/components/auth/or';
 import { SignInGithub } from '@/components/auth/sign-in-github';
 import { SignInGoogle } from '@/components/auth/sign-in-google';
+import { SignInOidc } from '@/components/auth/sign-in-oidc';
 import { SignUpEmailForm } from '@/components/auth/sign-up-email-form';
 import FullPageLoadingState from '@/components/full-page-loading-state';
 import { useTRPC } from '@/integrations/trpc/react';
+import { getServerEnvsQueryOptions } from '@/server/get-envs';
 import { createEntityTitle, PAGE_TITLES } from '@/utils/title';
 
 const validateSearch = z.object({
@@ -42,6 +44,7 @@ export const Route = createFileRoute('/_public/onboarding')({
 
 function Component() {
   const { inviteId } = Route.useSearch();
+  const { data: envs } = useSuspenseQuery(getServerEnvsQueryOptions);
   const trpc = useTRPC();
   const { data: invite } = useQuery(
     trpc.organization.getInvite.queryOptions(
@@ -119,21 +122,26 @@ function Component() {
       )}
 
       <div className="space-y-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <SignInGithub inviteId={inviteId} type="sign-up" />
-          <SignInGoogle inviteId={inviteId} type="sign-up" />
-        </div>
-        <p className="text-center text-muted-foreground text-xs">
-          No credit card required · Free 30-day trial · Cancel anytime
-        </p>
+        <SignInOidc inviteId={inviteId} type="sign-up" />
+        {!envs.oidc.only && (
+          <>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <SignInGithub inviteId={inviteId} type="sign-up" />
+              <SignInGoogle inviteId={inviteId} type="sign-up" />
+            </div>
+            <p className="text-center text-muted-foreground text-xs">
+              No credit card required · Free 30-day trial · Cancel anytime
+            </p>
 
-        <Or className="my-6" />
+            <Or className="my-6" />
 
-        <div className="mb-4 flex items-center gap-2 font-semibold text-lg">
-          <MailIcon className="size-4" />
-          Sign up with email
-        </div>
-        <SignUpEmailForm inviteId={inviteId} />
+            <div className="mb-4 flex items-center gap-2 font-semibold text-lg">
+              <MailIcon className="size-4" />
+              Sign up with email
+            </div>
+            <SignUpEmailForm inviteId={inviteId} />
+          </>
+        )}
       </div>
     </div>
   );
