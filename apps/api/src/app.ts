@@ -6,6 +6,8 @@ import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUI from '@fastify/swagger-ui';
 import {
   EMPTY_SESSION,
+  getOidcConfiguration,
+  isOidcEnabled,
   type SessionValidationResult,
   decodeSessionToken,
   validateSessionToken,
@@ -81,6 +83,12 @@ export async function buildApp(
   options: BuildAppOptions = {},
 ): Promise<FastifyInstance> {
   const { testing = false } = options;
+
+  // Fail startup on partial or unsafe OIDC configuration instead of exposing
+  // a sign-in button that can only fail after redirecting the user.
+  if (isOidcEnabled()) {
+    getOidcConfiguration();
+  }
 
   const fastify = Fastify({
     maxParamLength: 15_000,
