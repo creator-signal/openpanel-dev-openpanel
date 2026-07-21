@@ -137,7 +137,7 @@ jobs:
 
   publish-images:
     name: Publish ${{ matrix.name }} image
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: validate
     runs-on: ubuntu-latest
     permissions:

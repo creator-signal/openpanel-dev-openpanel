@@ -1,5 +1,6 @@
 packages:
   - "apps/*"
+  - "creativesignal"
   - "packages/**"
   - "tooling/*"
   - "admin"

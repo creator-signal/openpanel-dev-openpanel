@@ -1,4 +1,8 @@
 import {
+  createOidcAuthorizationRequest,
+  isOidcEnabled,
+} from '@creativesignal/openpanel/oidc/core';
+import {
   Arctic,
   buildOtpauthUrl,
   COOKIE_OPTIONS,
@@ -9,16 +13,11 @@ import {
   generateRecoveryCodes,
   generateSessionToken,
   generateTotpSecret,
-  getIsRegistrationAllowed,
-  getOidcConfiguration,
-  getOidcMetadata,
   github,
   google,
   hashPassword,
   hashRecoveryCodes,
   invalidateSession,
-  isOidcEnabled,
-  oidc,
   setLastAuthProviderCookie,
   setSessionTokenCookie,
   validateSessionToken,
@@ -80,6 +79,38 @@ async function consumeInviteForUser(
   }
 }
 
+async function getIsRegistrationAllowed(inviteId?: string | null) {
+  // ALLOW_REGISTRATION is always undefined in cloud
+  if (process.env.ALLOW_REGISTRATION === undefined) {
+    return true;
+  }
+
+  // Self-hosting logic
+  // 1. First user is always allowed
+  const count = await db.user.count();
+  if (count === 0) {
+    return true;
+  }
+
+  // 2. If there is an invite, check if it is valid
+  if (inviteId) {
+    if (process.env.ALLOW_INVITATION === 'false') {
+      return false;
+    }
+
+    const invite = await db.invite.findUnique({
+      where: {
+        id: inviteId,
+      },
+    });
+
+    return !!invite;
+  }
+
+  // 3. Otherwise, check if general registration is allowed
+  return process.env.ALLOW_REGISTRATION !== 'false';
+}
+
 export const authRouter = createTRPCRouter({
   signOut: publicProcedure.mutation(async ({ ctx }) => {
     deleteSessionTokenCookie(ctx.setCookie);
@@ -132,33 +163,21 @@ export const authRouter = createTRPCRouter({
           );
         }
 
-        const config = getOidcConfiguration();
-        const metadata = await getOidcMetadata();
-        const state = Arctic.generateState();
-        const codeVerifier = Arctic.generateCodeVerifier();
-        const nonce = Arctic.generateState();
-        const url = oidc.createAuthorizationURLWithPKCE(
-          metadata.authorizationEndpoint,
-          state,
-          Arctic.CodeChallengeMethod.S256,
-          codeVerifier,
-          config.scopes
-        );
-        url.searchParams.set('nonce', nonce);
+        const request = await createOidcAuthorizationRequest();
 
-        ctx.setCookie('oidc_oauth_state', state, {
+        ctx.setCookie('oidc_oauth_state', request.state, {
           maxAge: 60 * 10,
         });
-        ctx.setCookie('oidc_code_verifier', codeVerifier, {
+        ctx.setCookie('oidc_code_verifier', request.codeVerifier, {
           maxAge: 60 * 10,
         });
-        ctx.setCookie('oidc_nonce', nonce, {
+        ctx.setCookie('oidc_nonce', request.nonce, {
           maxAge: 60 * 10,
         });
 
         return {
           type: 'oidc',
-          url: url.toString(),
+          url: request.url.toString(),
         };
       }
 

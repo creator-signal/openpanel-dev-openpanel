@@ -1,0 +1,35 @@
+{
+  "name": "@creativesignal/openpanel",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./oidc/api-callback": "./oidc/api-callback.ts",
+    "./oidc/client": "./oidc/client.tsx",
+    "./oidc/core": "./oidc/core.ts",
+    "./oidc/public-config": "./oidc/public-config.ts",
+    "./oidc/registration": "./oidc/registration.ts"
+  },
+  "scripts": {
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@openpanel/auth": "workspace:^",
+    "@openpanel/db": "workspace:*",
+    "arctic": "^2.3.0",
+    "fastify": "^5.8.5",
+    "jose": "^6.2.2",
+    "lucide-react": "^0.476.0",
+    "react": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@openpanel/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "^3.0.4"
+  }
+}
