@@ -1,6 +1,6 @@
 import { db } from '@openpanel/db';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getIsRegistrationAllowed } from './src/registration';
+import { getIsRegistrationAllowed } from './registration';
 
 vi.mock('@openpanel/db', () => ({
   db: {

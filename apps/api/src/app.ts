@@ -5,9 +5,11 @@ import cors, { type FastifyCorsOptions } from '@fastify/cors';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUI from '@fastify/swagger-ui';
 import {
-  EMPTY_SESSION,
   getOidcConfiguration,
   isOidcEnabled,
+} from '@creativesignal/openpanel/oidc/core';
+import {
+  EMPTY_SESSION,
   type SessionValidationResult,
   decodeSessionToken,
   validateSessionToken,

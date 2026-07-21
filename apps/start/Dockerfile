@@ -25,6 +25,8 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # Apps
 COPY apps/start/package.json ./apps/start/
+# Creator Signal extensions
+COPY creativesignal/package.json creativesignal/
 # Packages - Only copy what start app needs
 COPY packages/trpc/package.json packages/trpc/
 COPY packages/json/package.json packages/json/
@@ -57,6 +59,7 @@ RUN pnpm install --frozen-lockfile && \
 
 # Copy source code
 COPY apps/start ./apps/start
+COPY creativesignal ./creativesignal
 COPY packages ./packages
 COPY tooling ./tooling
 
@@ -82,6 +85,7 @@ COPY --from=build /app/pnpm-workspace.yaml ./
 
 # Copy package.json files for production install
 COPY --from=build /app/apps/start/package.json ./apps/start/
+COPY --from=build /app/creativesignal/package.json ./creativesignal/
 COPY --from=build /app/packages/db/package.json ./packages/db/
 COPY --from=build /app/packages/trpc/package.json ./packages/trpc/
 COPY --from=build /app/packages/auth/package.json ./packages/auth/
@@ -119,6 +123,7 @@ COPY --from=prod /app/node_modules ./node_modules
 COPY --from=build /app/apps/start/.output ./apps/start/.output
 COPY --from=build /app/apps/start/dist ./apps/start/dist
 COPY --from=build /app/apps/start/package.json ./apps/start/
+COPY --from=build /app/creativesignal ./creativesignal
 
 # Copy necessary packages
 COPY --from=build /app/packages/db ./packages/db

@@ -14,7 +14,6 @@
     "@oslojs/encoding": "^1.1.0",
     "@oslojs/otp": "^1.1.0",
     "arctic": "^2.3.0",
-    "jose": "^6.2.2",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {

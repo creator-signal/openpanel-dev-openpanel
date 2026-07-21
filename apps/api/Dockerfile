@@ -26,6 +26,8 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # Apps
 COPY apps/api/package.json ./apps/api/
+# Creator Signal extensions
+COPY creativesignal/package.json creativesignal/
 # Packages
 COPY packages/ai/package.json packages/ai/
 COPY packages/db/package.json packages/db/
@@ -59,6 +61,7 @@ RUN pnpm install --frozen-lockfile && \
     pnpm store prune
 
 COPY apps/api ./apps/api
+COPY creativesignal ./creativesignal
 COPY packages ./packages
 COPY tooling ./tooling
 
@@ -95,6 +98,9 @@ COPY --from=prod /app/node_modules ./node_modules
 
 # Apps
 COPY --from=build /app/apps/api ./apps/api
+
+# Creator Signal extensions
+COPY --from=build /app/creativesignal ./creativesignal
 
 # Packages
 COPY --from=build /app/packages/ai ./packages/ai

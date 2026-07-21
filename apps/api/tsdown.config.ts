@@ -1,10 +1,10 @@
-import { defineConfig } from 'tsdown';
 import type { Options } from 'tsdown';
+import { defineConfig } from 'tsdown';
 
 const options: Options = {
   clean: true,
   entry: ['src/index.ts'],
-  noExternal: [/^@openpanel\/.*$/u, /^@\/.*$/u],
+  noExternal: [/^@creativesignal\/.*$/u, /^@openpanel\/.*$/u, /^@\/.*$/u],
   external: [
     '@hyperdx/node-opentelemetry',
     'pino',

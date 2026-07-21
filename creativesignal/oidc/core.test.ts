@@ -5,7 +5,7 @@ import {
   getOidcConfiguration,
   oidcClaimContainsValue,
   verifyOidcIdToken,
-} from './src/oauth';
+} from './core';
 
 const originalEnvironment = { ...process.env };
 let server: Server;

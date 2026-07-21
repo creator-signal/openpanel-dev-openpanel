@@ -1,3 +1,4 @@
+import type { OidcPublicConfiguration } from '@creativesignal/openpanel/oidc/public-config';
 import { createFileRoute } from '@tanstack/react-router';
 import { getServerEnvs } from '@/server/get-envs';
 
@@ -7,12 +8,7 @@ export interface ConfigResonse {
   isSelfHosted: boolean;
   isMaintenance: boolean;
   isDemo: boolean;
-  oidc: {
-    enabled: boolean;
-    displayName: string;
-    loginMode: 'auto' | 'button';
-    only: boolean;
-  };
+  oidc: OidcPublicConfiguration;
 }
 // Nothing sensitive here, its client environment variables which is good for debugging
 export const Route = createFileRoute('/api/config')({

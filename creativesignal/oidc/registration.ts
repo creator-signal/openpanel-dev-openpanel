@@ -1,12 +1,11 @@
 import { db } from '@openpanel/db';
 
 export async function getIsRegistrationAllowed(inviteId?: string | null) {
-  // ALLOW_REGISTRATION is always undefined in OpenPanel Cloud.
+  // Mirrors OpenPanel's self-hosted policy for OIDC callback provisioning.
   if (process.env.ALLOW_REGISTRATION === undefined) {
     return true;
   }
 
-  // The first self-hosted user is always allowed.
   if ((await db.user.count()) === 0) {
     return true;
   }
