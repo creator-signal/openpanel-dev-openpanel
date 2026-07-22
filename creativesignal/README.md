@@ -12,6 +12,8 @@ the feature with OpenPanel, build it into the images, and expose the login UI.
 - `oidc/public-config.ts`: safe dashboard-only display configuration.
 - `oidc/registration.ts`: self-hosted registration and invitation policy.
 - `oidc/*.test.ts`: security and registration policy coverage.
+- `ui/policy.ts`: Creator Signal UI visibility policy for externally managed identity.
+- `ui/*.test.ts`: UI policy coverage.
 - `.env.example`: the deployment environment contract.
 
 ## Deliberate upstream touchpoints
@@ -23,6 +25,7 @@ the feature with OpenPanel, build it into the images, and expose the login UI.
 | `apps/api/package.json`, `apps/api/src/app.ts` and `apps/api/src/routes/oauth-callback.router.ts` | Validates startup configuration and registers the callback. |
 | `apps/api/tsdown.config.ts` | Bundles the Creator Signal package into the API image. |
 | `apps/start/package.json` and the login/onboarding/config files | Exposes safe OIDC settings and the login control. |
+| `apps/start/src/routes/_app.$organizationId.tsx` and account route files | Apply the isolated UI policy to the supporter prompt and account controls. |
 | `apps/api/Dockerfile` and `apps/start/Dockerfile` | Makes the workspace package available during container builds. |
 | `.github/workflows/docker-build.yml` | Builds reviewed multi-architecture images and publishes only from `main`. |
 | `pnpm-lock.yaml` | Locks this workspace package and its dependencies. |
@@ -30,6 +33,11 @@ the feature with OpenPanel, build it into the images, and expose the login UI.
 No Creator Signal implementation should be added under `packages/` or embedded
 in an upstream controller. Future fork features belong under `creativesignal/`
 and should follow the same thin-bridge pattern.
+
+When `OIDC_ONLY=true`, account authentication and lifecycle are owned by the
+identity provider. The UI policy therefore hides OpenPanel's supporter prompt,
+account-deletion control and local two-factor route. These controls remain
+unchanged for upstream-compatible deployments where OIDC-only mode is off.
 
 ## Published images
 

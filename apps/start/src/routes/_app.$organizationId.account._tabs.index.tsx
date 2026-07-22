@@ -4,6 +4,7 @@ import DeleteAccount from '@/components/settings/delete-account';
 import { Button } from '@/components/ui/button';
 import { Widget, WidgetBody, WidgetHead } from '@/components/widget';
 import { handleError, useTRPC } from '@/integrations/trpc/react';
+import { getCreatorSignalUiPolicy } from '@creativesignal/openpanel/ui/policy';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
@@ -26,6 +27,8 @@ export const Route = createFileRoute('/_app/$organizationId/account/_tabs/')({
 
 function Component() {
   const trpc = useTRPC();
+  const { oidc } = Route.useRouteContext();
+  const uiPolicy = getCreatorSignalUiPolicy(oidc);
   const queryClient = useQueryClient();
   const session = useSuspenseQuery(trpc.auth.session.queryOptions());
   const user = session.data?.user;
@@ -98,7 +101,7 @@ function Component() {
         </WidgetBody>
       </Widget>
       </form>
-      <DeleteAccount />
+      {uiPolicy.showDeleteAccount && <DeleteAccount />}
     </div>
   );
 }

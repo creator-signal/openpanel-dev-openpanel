@@ -3,6 +3,7 @@ import { PageContainer } from '@/components/page-container';
 import { PageHeader } from '@/components/page-header';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePageTabs } from '@/hooks/use-page-tabs';
+import { getCreatorSignalUiPolicy } from '@creativesignal/openpanel/ui/policy';
 import { Outlet, createFileRoute, useRouter } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/_app/$organizationId/account/_tabs')({
@@ -13,11 +14,16 @@ export const Route = createFileRoute('/_app/$organizationId/account/_tabs')({
 function Component() {
   const router = useRouter();
   const { organizationId } = Route.useParams();
-  const { activeTab, tabs } = usePageTabs([
+  const { oidc } = Route.useRouteContext();
+  const uiPolicy = getCreatorSignalUiPolicy(oidc);
+  const accountTabs = [
     { id: 'account', label: 'Profile' },
     { id: 'email-preferences', label: 'Email preferences' },
-    { id: 'two-factor', label: 'Two-factor auth' },
-  ]);
+    ...(uiPolicy.showOpenPanelTwoFactor
+      ? [{ id: 'two-factor', label: 'Two-factor auth' }]
+      : []),
+  ];
+  const { activeTab, tabs } = usePageTabs(accountTabs);
 
   const handleTabChange = (tabId: string) => {
     if (tabId === 'account') {
