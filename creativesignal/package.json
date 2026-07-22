@@ -8,7 +8,8 @@
     "./oidc/client": "./oidc/client.tsx",
     "./oidc/core": "./oidc/core.ts",
     "./oidc/public-config": "./oidc/public-config.ts",
-    "./oidc/registration": "./oidc/registration.ts"
+    "./oidc/registration": "./oidc/registration.ts",
+    "./ui/policy": "./ui/policy.ts"
   },
   "scripts": {
     "test": "vitest run --config vitest.config.ts",

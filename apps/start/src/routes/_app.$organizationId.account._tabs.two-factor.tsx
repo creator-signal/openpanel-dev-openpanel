@@ -3,8 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Widget, WidgetBody, WidgetHead } from '@/components/widget';
 import { useTRPC } from '@/integrations/trpc/react';
 import { pushModal } from '@/modals';
+import { getCreatorSignalUiPolicy } from '@creativesignal/openpanel/ui/policy';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 import { ShieldCheckIcon, ShieldOffIcon } from 'lucide-react';
 
 export const Route = createFileRoute(
@@ -12,6 +13,14 @@ export const Route = createFileRoute(
 )({
   component: Component,
   pendingComponent: FullPageLoadingState,
+  beforeLoad: ({ context, params }) => {
+    if (!getCreatorSignalUiPolicy(context.oidc).showOpenPanelTwoFactor) {
+      throw redirect({
+        to: '/$organizationId/account',
+        params: { organizationId: params.organizationId },
+      });
+    }
+  },
 });
 
 function Component() {
@@ -85,7 +94,7 @@ function EnabledView({
       <div className="row items-center justify-between rounded-md border border-border bg-def-100 px-4 py-3">
         <div className="row items-center gap-2">
           <div className="size-10 bg-emerald-500/10 rounded-full center-center">
-          <ShieldCheckIcon className="size-4 text-emerald-500" />
+            <ShieldCheckIcon className="size-4 text-emerald-500" />
           </div>
           <div className="col gap-1">
             <span>Two-factor authentication is enabled.</span>

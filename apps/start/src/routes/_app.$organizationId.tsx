@@ -5,8 +5,9 @@ import SupporterPrompt from '@/components/organization/supporter-prompt';
 import { LinkButton } from '@/components/ui/button';
 import { useTRPC } from '@/integrations/trpc/react';
 import { cn } from '@/utils/cn';
-import { getSubscriptionStateMeta } from '@openpanel/payments/subscription-state-meta';
+import { getCreatorSignalUiPolicy } from '@creativesignal/openpanel/ui/policy';
 import { subscriptionBlocksDashboard } from '@openpanel/payments/subscription-state';
+import { getSubscriptionStateMeta } from '@openpanel/payments/subscription-state-meta';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import {
   Outlet,
@@ -112,6 +113,8 @@ function Alert({
 
 function Component() {
   const { organizationId } = Route.useParams();
+  const { oidc } = Route.useRouteContext();
+  const uiPolicy = getCreatorSignalUiPolicy(oidc);
   const trpc = useTRPC();
   const { data: organization } = useSuspenseQuery(
     trpc.organization.get.queryOptions({
@@ -172,7 +175,7 @@ function Component() {
           </Alert>
         )}
       <Outlet />
-      <SupporterPrompt />
+      {uiPolicy.showSupporterPrompt && <SupporterPrompt />}
       <FeedbackPrompt />
     </>
   );
